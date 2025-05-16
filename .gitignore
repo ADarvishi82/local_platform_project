@@ -1,0 +1,37 @@
+# Python 
+__pycache__/ 
+*.py[cod] 
+*$py.class 
+*.so 
+*.egg-info/ 
+*.egg 
+dist/ 
+build/ 
+*.log 
+*.pot 
+*.mo 
+ 
+# Virtual Environment 
+venv/ 
+.venv/ 
+ENV/ 
+env/ 
+env.bak/ 
+venv.bak/ 
+ 
+# Django 
+*.sqlite3 
+db.sqlite3 
+local_settings.py 
+*.DS_Store 
+ 
+# IDE / Editor specific 
+.idea/ 
+.vscode/ 
+*.swp 
+*.swo 
+ 
+# Secrets and sensitive files (????) 
+# .env 
+# secrets.json 
+# *.pem 
