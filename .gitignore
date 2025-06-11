@@ -23,6 +23,7 @@ venv.bak/
 *.sqlite3 
 db.sqlite3 
 local_settings.py 
+media/
 *.DS_Store 
  
 # IDE / Editor specific 

@@ -1,34 +1,50 @@
 # users/serializers.py
 from rest_framework import serializers
 from django.contrib.auth.models import User
-from .models import UserProfile, BusinessProfile, Category, Tag
+from .models import UserProfile, BusinessProfile , Category, Tag 
+#from neighborhoods.serializers import NeighborhoodSimpleSerializer # <<<< سریالایزر ساده محله را import کنید
 
-# سریالایزر برای مدل User (فقط برای نمایش اطلاعات، نه ایجاد یا آپدیت مستقیم User از اینجا)
+# ... (UserDisplaySerializer شما) ...
 class UserDisplaySerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'username', 'email', 'first_name', 'last_name']
 
+# ... (CategorySerializer و TagSerializer شما اگر اینجا هستند یا از جای دیگر import شده‌اند) ...
+class CategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Category
+        fields = ['id', 'name', 'slug']
+        read_only_fields = ('slug',)
 
-from .models import UserProfile 
+class TagSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Tag
+        fields = ['id', 'name', 'slug']
+        read_only_fields = ('slug',)
+
 
 class UserProfileSerializer(serializers.ModelSerializer):
     user = UserDisplaySerializer(read_only=True)
-    profile_picture_url = serializers.SerializerMethodField(read_only=True) 
+    profile_picture_url = serializers.SerializerMethodField(read_only=True)
+    neighborhood = serializers.CharField(source='neighborhood.__str__', read_only=True, allow_null=True )                                                             # این از فیلد neighborhood در مدل UserProfile می‌خواند
+
     class Meta:
         model = UserProfile
         fields = [
             'id', 'user', 'address_string', 'latitude', 'longitude',
-            'profile_picture', # خود فیلد برای آپلود
-            'profile_picture_url', # فیلد سفارشی برای نمایش URL
+            'profile_picture', # برای آپلود
+            'profile_picture_url',
+            'neighborhood', # <<<< اضافه شد
             'created_at', 'updated_at'
         ]
-        read_only_fields = ('user', 'created_at', 'updated_at', 'profile_picture_url')
+        read_only_fields = ('user', 'created_at', 'updated_at', 'profile_picture_url', 'neighborhood')
         extra_kwargs = {
-            'profile_picture': {'write_only': True, 'required': False} 
+            'profile_picture': {'write_only': True, 'required': False}
         }
     
     def get_profile_picture_url(self, obj):
+        # ... (کد قبلی get_profile_picture_url) ...
         request = self.context.get('request')
         if obj.profile_picture and hasattr(obj.profile_picture, 'url'):
             if request:
@@ -36,55 +52,73 @@ class UserProfileSerializer(serializers.ModelSerializer):
             return obj.profile_picture.url
         return None
 
-
-
-
-# سریالایزر برای Category
-class CategorySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Category
-        fields = ['id', 'name', 'slug'] # 'parent', 'icon' را هم اضافه کنید اگر دارید
-        read_only_fields = ('slug',) # اسلاگ به طور خودکار ساخته می‌شود
-
-# سریالایزر برای Tag
-class TagSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Tag
-        fields = ['id', 'name', 'slug']
-        read_only_fields = ('slug',)
-
-# سریالایزر برای BusinessProfile
 class BusinessProfileSerializer(serializers.ModelSerializer):
-    user = UserDisplaySerializer(read_only=True) # نمایش اطلاعات کاربر مدیر (فقط خواندنی)
-    category = CategorySerializer(read_only=True) # نمایش اطلاعات دسته‌بندی (فقط خواندنی)
-    # برای ایجاد/آپدیت، ID دسته‌بندی را می‌گیریم:
+    user = UserDisplaySerializer(read_only=True)
+    category = CategorySerializer(read_only=True) # نمایش آبجکت کامل دسته‌بندی
     category_id = serializers.PrimaryKeyRelatedField(
         queryset=Category.objects.all(), source='category', write_only=True, allow_null=True, required=False
     )
-
-    tags = TagSerializer(many=True, read_only=True) # نمایش لیست تگ‌ها (فقط خواندنی)
-    # برای ایجاد/آپدیت، لیستی از ID های تگ‌ها را می‌گیریم:
+    tags = TagSerializer(many=True, read_only=True) # نمایش لیست آبجکت‌های تگ
     tag_ids = serializers.PrimaryKeyRelatedField(
         queryset=Tag.objects.all(), source='tags', write_only=True, many=True, required=False
     )
-
-    # نمایش نام فارسی account_type
     account_type_display = serializers.CharField(source='get_account_type_display', read_only=True)
-
+    neighborhood = serializers.CharField(source='neighborhood.__str__', read_only=True, allow_null=True)    
+    logo_url = serializers.SerializerMethodField(read_only=True) 
 
     class Meta:
         model = BusinessProfile
         fields = [
             'id', 'user', 'account_type', 'account_type_display', 'business_name',
-            'category', 'category_id', 'tags', 'tag_ids',
+            'category', 'category_id', 
+            'tags', 'tag_ids',
+            'neighborhood', # <<<< اضافه شد
             'description', 'address_string', 'latitude', 'longitude',
-            'phone_number', 'website', # 'logo' را هم اضافه کنید اگر دارید و برایش راه‌حل آپلود فایل دارید
+            'phone_number', 'website', 
+            'logo', # برای آپلود لوگو
+            'logo_url', # برای نمایش URL لوگو
             'is_verified', 'created_at', 'updated_at'
         ]
-        read_only_fields = ('user', 'is_verified', 'created_at', 'updated_at') # کاربر و وضعیت تایید توسط ادمین یا منطق دیگر مدیریت می‌شود
+        read_only_fields = ('user', 'is_verified', 'created_at', 'updated_at', 'neighborhood', 'logo_url')
+        extra_kwargs = {
+            'logo': {'write_only': True, 'required': False} # برای آپلود، فقط write_only و اختیاری
+        }
 
-    # می‌توانید متدهای create و update را برای مدیریت خاص ایجاد/آپدیت پروفایل کسب‌وکار بازنویسی کنید
-    # به خصوص اگر می‌خواهید پروفایل به کاربر لاگین شده فعلی اختصاص یابد.
-    # def create(self, validated_data):
-    #     # ... منطق اختصاص کاربر ...
-    #     return super().create(validated_data)
+    def get_logo_url(self, obj): # اضافه کردن متد برای دریافت URL لوگو
+        request = self.context.get('request')
+        if obj.logo and hasattr(obj.logo, 'url'):
+            if request:
+                return request.build_absolute_uri(obj.logo.url)
+            return obj.logo.url
+        return None
+
+# ... (UserProfileSimpleSerializer و BusinessProfileSimpleSerializer شما از قبل اینجا هستند) ...
+class UserProfileSimpleSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(source='user.username', read_only=True)
+    profile_picture_url = serializers.SerializerMethodField(read_only=True)
+
+    class Meta:
+        model = UserProfile
+        fields = ['id', 'username', 'profile_picture_url'] 
+    
+    def get_profile_picture_url(self, obj):
+        request = self.context.get('request')
+        if obj.profile_picture and hasattr(obj.profile_picture, 'url'):
+            if request: return request.build_absolute_uri(obj.profile_picture.url)
+            return obj.profile_picture.url
+        return None
+
+class BusinessProfileSimpleSerializer(serializers.ModelSerializer):
+    category_name = serializers.CharField(source='category.name', read_only=True, allow_null=True)
+    logo_url = serializers.SerializerMethodField(read_only=True)
+
+    class Meta:
+        model = BusinessProfile
+        fields = ['id', 'business_name', 'category_name', 'logo_url', 'address_string']
+    
+    def get_logo_url(self, obj):
+        request = self.context.get('request')
+        if obj.logo and hasattr(obj.logo, 'url'):
+            if request: return request.build_absolute_uri(obj.logo.url)
+            return obj.logo.url
+        return None

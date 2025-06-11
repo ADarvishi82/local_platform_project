@@ -14,28 +14,39 @@ from .serializers import (
 from rest_framework.parsers import MultiPartParser, FormParser # اضافه کنید
 
 
+from .serializers import UserProfileSerializer # مطمئن شوید این import وجود دارد
+
 class UserProfileViewSet(viewsets.ModelViewSet):
-    queryset = UserProfile.objects.all()
     serializer_class = UserProfileSerializer
     permission_classes = [permissions.IsAuthenticated]
-    parser_classes = (MultiPartParser, FormParser) # << برای مدیریت آپلود فایل
-
-    # ... متدهای get_queryset و perform_create شما بدون تغییر ...
+    parser_classes = (MultiPartParser, FormParser) # برای آپلود فایل عکس پروفایل
 
     def get_queryset(self):
-        # کاربران فقط می‌توانند پروفایل خودشان را ببینند (مگر اینکه ادمین باشند)
-        if self.request.user.is_staff:
-            return UserProfile.objects.all()
+        # کاربر فقط می‌تواند پروفایل خودش را ببیند و ویرایش کند
         return UserProfile.objects.filter(user=self.request.user)
 
     def perform_create(self, serializer):
         # هنگام ایجاد پروفایل، آن را به کاربر لاگین شده فعلی اختصاص بده
-        # فرض می‌کنیم هر کاربر فقط یک پروفایل می‌تواند داشته باشد (به خاطر OneToOneField)
-        # باید بررسی کنیم که کاربر قبلاً پروفایل نداشته باشد
         if UserProfile.objects.filter(user=self.request.user).exists():
-            # می‌توانید یک خطا برگردانید یا پروفایل موجود را آپدیت کنید
-            raise serializers.ValidationError({'detail': 'این کاربر قبلاً پروفایل دارد.'}, code=status.HTTP_400_BAD_REQUEST)
+            raise serializers.ValidationError(
+                {'detail': 'این کاربر قبلاً پروفایل دارد. برای تغییر، از متد PUT یا PATCH استفاده کنید.'},
+                code=status.HTTP_400_BAD_REQUEST
+            )
         serializer.save(user=self.request.user)
+        
+        # یک اکشن برای دریافت/آپدیت پروفایل کاربر فعلی
+    # اگر پروفایل وجود نداشت، می‌توانیم اجازه دهیم با POST به همین endpoint ساخته شود
+    # یا اینکه کلاینت خودش تشخیص دهد و به endpoint لیست (POST /api/user-profiles/) بفرستد.
+    # برای سادگی، فرض می‌کنیم کلاینت خودش POST یا PUT/PATCH را به endpoint درست می‌زند.
+    # اما یک GET برای پروفایل فعلی مفید است:
+    @action(detail=False, methods=['get'], url_path='me', url_name='my-profile')
+    def my_profile(self, request):
+        try:
+            profile = UserProfile.objects.get(user=request.user)
+            serializer = self.get_serializer(profile)
+            return Response(serializer.data)
+        except UserProfile.DoesNotExist:
+            return Response({'detail': 'پروفایل برای این کاربر یافت نشد.'}, status=status.HTTP_404_NOT_FOUND)
 
 # ViewSet برای Category (معمولاً فقط خواندنی برای کاربران عادی)
 class CategoryViewSet(viewsets.ReadOnlyModelViewSet): # فقط خواندنی (GET list, GET detail)

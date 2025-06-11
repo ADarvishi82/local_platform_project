@@ -1,21 +1,36 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils.text import slugify # برای ساختن اسلاگ از نام
+from neighborhoods.utils import assign_neighborhood_to_profile
+
 
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     address_string = models.CharField(max_length=255, blank=True, null=True, verbose_name="آدرس متنی")
     latitude = models.FloatField(blank=True, null=True, verbose_name="عرض جغرافیایی")
     longitude = models.FloatField(blank=True, null=True, verbose_name="طول جغرافیایی")
-    
-    # اضافه کردن فیلد عکس پروفایل
+    phone_number = models.CharField(max_length=20, blank=True, null=True, verbose_name="شماره تلفن")
+
     profile_picture = models.ImageField(
         upload_to='profile_pics/',  # عکس‌ها در پوشه MEDIA_ROOT/profile_pics/ ذخیره می‌شوند
         blank=True,                 # می‌تواند خالی باشد
         null=True,                  # در دیتابیس می‌تواند null باشد
         verbose_name="عکس پروفایل"
     )
-    # phone_number = models.CharField(max_length=20, blank=True, null=True, verbose_name="شماره تلفن")
+    
+    neighborhood = models.ForeignKey(
+        'neighborhoods.Neighborhood', # استفاده از رشته برای جلوگیری از circular import
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='user_profiles_in_neighborhood', # نام related_name واضح‌تر
+        verbose_name="محله"
+    )
+    def save(self, *args, **kwargs):
+            # قبل از ذخیره، سعی کن محله را تخصیص بدهی
+        if self.latitude is not None and self.longitude is not None:
+            assign_neighborhood_to_profile(self) # این تابع فیلد self.neighborhood را set می‌کند
+        super().save(*args, **kwargs)
 
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="زمان ایجاد")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="زمان بروزرسانی")
@@ -27,8 +42,9 @@ class UserProfile(models.Model):
         verbose_name = "پروفایل کاربر"
         verbose_name_plural = "پروفایل‌های کاربران"
 
+#------------------------------------------------------------------------------------------
 # ... سایر مدل‌های شما (Category, Tag, BusinessProfile) بدون تغییر باقی می‌مانند ...
-
+#------------------------------------------------------------------------------------------
 # مدل Category
 class Category(models.Model):
     name = models.CharField(max_length=100, unique=True, verbose_name="نام دسته‌بندی")
@@ -48,7 +64,7 @@ class Category(models.Model):
         verbose_name = "دسته‌بندی"
         verbose_name_plural = "دسته‌بندی‌ها"
         ordering = ['name'] # مرتب‌سازی بر اساس نام
-
+#----------------------------------------------------------------------------------------------
 # مدل Tag
 class Tag(models.Model):
     name = models.CharField(max_length=100, unique=True, verbose_name="نام تگ")
@@ -66,7 +82,7 @@ class Tag(models.Model):
         verbose_name = "تگ"
         verbose_name_plural = "تگ‌ها"
         ordering = ['name']
-
+#---------------------------------------------------------------------------------------------
 # مدل BusinessProfile (به‌روز شده با Category و Tag و نوع سازمان)
 class BusinessProfile(models.Model):
     ACCOUNT_TYPE_CHOICES = [
@@ -98,21 +114,34 @@ class BusinessProfile(models.Model):
         related_name='businesses', # از یک Tag به تمام BusinessProfile های آن دسترسی داریم
         verbose_name="تگ‌ها"
     )
-    
+    neighborhood = models.ForeignKey(
+        'neighborhoods.Neighborhood',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='business_profiles_in_neighborhood', # نام related_name واضح‌تر
+        verbose_name="محله"
+    )
+    def save(self, *args, **kwargs):
+        if self.latitude is not None and self.longitude is not None:
+            assign_neighborhood_to_profile(self)
+        super().save(*args, **kwargs)
     description = models.TextField(blank=True, null=True, verbose_name="توضیحات")
     address_string = models.CharField(max_length=255, blank=True, null=True, verbose_name="آدرس متنی")
     latitude = models.FloatField(blank=True, null=True, verbose_name="عرض جغرافیایی")
     longitude = models.FloatField(blank=True, null=True, verbose_name="طول جغرافیایی")
-    
     phone_number = models.CharField(max_length=20, blank=True, null=True, verbose_name="شماره تلفن")
     website = models.URLField(blank=True, null=True, verbose_name="وب‌سایت")
     logo = models.ImageField(upload_to='business_logos/', blank=True, null=True, verbose_name="لوگو") # نیاز به تنظیم MEDIA_ROOT و MEDIA_URL
-
     is_verified = models.BooleanField(default=False, verbose_name="تأیید شده (تیک آبی)") # برای تأیید کسب‌وکار/سازمان توسط ادمین
-
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="زمان ایجاد")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="زمان بروزرسانی")
 
+    def save(self, *args, **kwargs):
+        if self.latitude is not None and self.longitude is not None:
+            assign_neighborhood_to_profile(self)
+        super().save(*args, **kwargs)
+    #---------------------------------    
     def __str__(self):
         return f"{self.get_account_type_display()}: {self.business_name} (مدیر: {self.user.username})"
 
