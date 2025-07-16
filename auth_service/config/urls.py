@@ -12,7 +12,8 @@ urlpatterns = [
     path('api/', include('users.urls')), # <<<< این خط را اضافه کنید (مثلاً تحت پیشوند /api/)
                                         # یا هر پیشوند دیگری که دوست دارید، مثلاً /api/v1/
                                         
-    path('api/' , include('neighborhoods.urls')),                               
+    path('api/' , include('neighborhoods.urls')),   
+    path("api/" , include('posts.urls')),                          
 ]
 
 if settings.DEBUG:

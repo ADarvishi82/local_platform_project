@@ -38,7 +38,8 @@ INSTALLED_APPS = [
     'dj_rest_auth.registration', # برای استفاده از endpoint ثبت نام داخلی dj_rest_auth
     'users.apps.UsersConfig', # یا فقط 'users'
     'neighborhoods.apps.NeighborhoodsConfig',
-    
+    "posts.apps.PostsConfig",
+    'taggit',
 ]
 SITE_ID = 1
 

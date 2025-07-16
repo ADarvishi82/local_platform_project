@@ -8,7 +8,7 @@ from .models import UserProfile, BusinessProfile , Category, Tag
 class UserDisplaySerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name']
+        fields = ['id', 'username', 'email', 'first_name', 'last_name','profile']
 
 # ... (CategorySerializer و TagSerializer شما اگر اینجا هستند یا از جای دیگر import شده‌اند) ...
 class CategorySerializer(serializers.ModelSerializer):
@@ -122,3 +122,39 @@ class BusinessProfileSimpleSerializer(serializers.ModelSerializer):
             if request: return request.build_absolute_uri(obj.logo.url)
             return obj.logo.url
         return None
+    
+
+class UserProfileForDisplaySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserProfile
+        fields = ['id', 'profile_picture_url'] # فقط ID و URL عکس کافی است
+    
+    # get_profile_picture_url را از UserProfileSerializer اصلی می‌توانید اینجا هم کپی کنید
+    # یا اگر UserProfileSerializer شما این را دارد، می‌توانید از آن ارث‌بری کنید
+    # برای سادگی، فرض می‌کنیم URL عکس به روش دیگری (مثلاً property در مدل) در دسترس است
+    # یا اینکه سریالایزر اصلی UserProfile شما این را مدیریت می‌کند.
+    # یک راه ساده‌تر:
+    profile_picture_url = serializers.CharField(source='get_absolute_image_url', read_only=True) # فرض می‌کنیم متدی با این نام در مدل دارید
+
+class BusinessProfileForDisplaySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BusinessProfile
+        fields = ['id', 'logo_url'] # فقط ID و URL لوگو
+    logo_url = serializers.CharField(source='get_absolute_logo_url', read_only=True)
+
+
+# سریالایزر اصلی برای نمایش کاربر (که در PostSerializer استفاده می‌شود)
+class UserDisplaySerializer(serializers.ModelSerializer):
+    # از 'source' استفاده می‌کنیم تا به رابطه‌های OneToOne دسترسی پیدا کنیم
+    # 'allow_null=True' مهم است چون یک کاربر ممکن است یکی از این پروفایل‌ها را نداشته باشد
+    #profile = serializers.PrimaryKeyRelatedField(read_only=True, allow_null=True) # ID پروفایل کاربری
+    #business_profile = serializers.PrimaryKeyRelatedField(read_only=True, allow_null=True) # ID پروفایل کسب‌وکار
+    profile = UserProfileSimpleSerializer(read_only=True, allow_null=True)
+    business_profile = BusinessProfileSimpleSerializer(read_only=True, allow_null=True)
+    # یا اگر می‌خواهید اطلاعات بیشتری از پروفایل‌ها را برگردانید:
+    # profile = UserProfileForDisplaySerializer(read_only=True, allow_null=True)
+    # business_profile = BusinessProfileForDisplaySerializer(read_only=True, allow_null=True)
+
+    class Meta:
+        model = User
+        fields = ['id', 'username', 'profile', 'business_profile']
