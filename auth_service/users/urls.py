@@ -1,5 +1,9 @@
 # users/urls.py
 from django.urls import path, include
+from .views import GoogleLoginAPIView, UserPostsAPIView # <<<< ویو جدید را import کنید
+from .views import MyNeighborhoodStatsAPIView # import کنید
+
+
 from rest_framework.routers import DefaultRouter
 from .views import (
     UserProfileViewSet,
@@ -18,4 +22,8 @@ router.register(r'tags', TagViewSet, basename='tag')
 
 urlpatterns = [
     path('', include(router.urls)),
+    path('auth/google/', GoogleLoginAPIView.as_view(), name='google_login_custom'), # <<<< URL جدید
+    path('users/<int:user_id>/posts/', UserPostsAPIView.as_view(), name='user-posts-list'),
+    path('my-neighborhood/stats/', MyNeighborhoodStatsAPIView.as_view(), name='my-neighborhood-stats'),
+
 ]

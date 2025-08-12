@@ -122,6 +122,27 @@ class BusinessProfile(models.Model):
         related_name='business_profiles_in_neighborhood', # نام related_name واضح‌تر
         verbose_name="محله"
     )
+    
+    price_string = models.CharField(
+        max_length=100, 
+        blank=True, 
+        null=True, 
+        verbose_name="رشته قیمت", 
+        help_text="مثال: ۱۵۰,۰۰۰ تومان شروع از، یا ۲۰۰,۰۰۰ تومان هر جلسه"
+    )
+    base_price = models.DecimalField(
+        max_digits=12,  # برای اعداد بزرگتر (تا ۹۹۹,۹۹۹,۹۹۹,۹۹۹)
+        decimal_places=0, 
+        null=True, 
+        blank=True, 
+        verbose_name="قیمت پایه (برای فیلتر)",
+        help_text="فقط عدد قیمت را برای فیلتر کردن وارد کنید."
+    )
+
+    # این فیلدها توسط سیگنال‌ها به طور خودکار آپدیت می‌شوند
+    average_rating = models.FloatField(default=0.0, verbose_name="میانگین امتیاز")
+    rating_count = models.PositiveIntegerField(default=0, verbose_name="تعداد امتیازات")
+    
     def save(self, *args, **kwargs):
         if self.latitude is not None and self.longitude is not None:
             assign_neighborhood_to_profile(self)

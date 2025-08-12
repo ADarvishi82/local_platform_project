@@ -27,6 +27,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'corsheaders',
+    'django_filters',
     'rest_framework',
     'rest_framework.authtoken', # <<<< اضافه کنید
     'rest_framework_simplejwt',
@@ -40,8 +41,33 @@ INSTALLED_APPS = [
     'neighborhoods.apps.NeighborhoodsConfig',
     "posts.apps.PostsConfig",
     'taggit',
+
 ]
 SITE_ID = 1
+INSTALLED_APPS += [
+    'allauth.socialaccount.providers.google', # اضافه کردن Google provider
+]
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'APP': {
+            'client_id': '279929399898-ir6jp70mc46v6pjojnrdl2veg3ta44h2.apps.googleusercontent.com',
+            'secret': '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',
+            'key': ''
+        },
+        'SCOPE': [
+            'profile',
+            'email',
+            'openid',
+        ],
+    }
+}
+ACCOUNT_UNIQUE_EMAIL = True
+ACCOUNT_EMAIL_VERIFICATION = 'none' # اگر قبلاً دارید
+ACCOUNT_UNIQUE_EMAIL = True
+ACCOUNT_EMAIL_REQUIRED = True
+SOCIALACCOUNT_AUTO_SIGNUP = True # ایجاد خودکار حساب کاربری برای کاربران جدید
+SOCIALACCOUNT_EMAIL_VERIFICATION = 'none' # عدم نیاز به تایید ایمیل برای ورود با گوگل
+
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -138,7 +164,10 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_PERMISSION_CLASSES': ( # یک پیش‌فرض خوب برای شروع
         'rest_framework.permissions.IsAuthenticatedOrReadOnly',
-    )
+    ),
+    'DEFAULT_FILTER_BACKENDS': (
+        'django_filters.rest_framework.DjangoFilterBackend',
+    ),
 }
 
 ACCOUNT_EMAIL_VERIFICATION = 'none'
@@ -150,6 +179,8 @@ REST_AUTH = {
     'USE_JWT': True,  
     'TOKEN_MODEL': None, 
     'JWT_AUTH_HTTPONLY' :False, 
+    'USER_DETAILS_SERIALIZER': 'users.serializers.UserDisplaySerializer',
+
 }
 
 # settings.py

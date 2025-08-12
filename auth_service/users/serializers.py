@@ -6,6 +6,7 @@ from .models import UserProfile, BusinessProfile , Category, Tag
 
 # ... (UserDisplaySerializer شما) ...
 class UserDisplaySerializer(serializers.ModelSerializer):
+
     class Meta:
         model = User
         fields = ['id', 'username', 'email', 'first_name', 'last_name','profile']
@@ -77,6 +78,10 @@ class BusinessProfileSerializer(serializers.ModelSerializer):
             'phone_number', 'website', 
             'logo', # برای آپلود لوگو
             'logo_url', # برای نمایش URL لوگو
+            'price_string',     # <<<< اضافه شد
+            'base_price',       # <<<< اضافه شد
+            'average_rating',   # <<<< اضافه شد
+            'rating_count',     
             'is_verified', 'created_at', 'updated_at'
         ]
         read_only_fields = ('user', 'is_verified', 'created_at', 'updated_at', 'neighborhood', 'logo_url')
@@ -156,5 +161,5 @@ class UserDisplaySerializer(serializers.ModelSerializer):
     # business_profile = BusinessProfileForDisplaySerializer(read_only=True, allow_null=True)
 
     class Meta:
-        model = User
-        fields = ['id', 'username', 'profile', 'business_profile']
+        model = User # یا مدل کاربر سفارشی شما
+        fields = ['pk', 'username', 'email', 'first_name', 'last_name', 'profile', 'business_profile']
