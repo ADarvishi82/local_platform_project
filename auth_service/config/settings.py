@@ -16,8 +16,11 @@ SECRET_KEY = 'django-insecure-4_zd2pw$cm#xo+zpjsxo7jhqt#dy@4zv2d-s$(*l4i_@vx&jo^
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
-
+ALLOWED_HOSTS = [
+    '127.0.0.1',
+    'localhost',
+    '.ngrok-free.app', 
+    ]
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -40,7 +43,9 @@ INSTALLED_APPS = [
     'users.apps.UsersConfig', # یا فقط 'users'
     'neighborhoods.apps.NeighborhoodsConfig',
     "posts.apps.PostsConfig",
+    'recommender',
     'taggit',
+    
 
 ]
 SITE_ID = 1

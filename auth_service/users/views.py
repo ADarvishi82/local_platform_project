@@ -20,7 +20,6 @@ from neighborhoods.models import Neighborhood # import کنید
 from posts.models import Post # import کنید
 from django_filters.rest_framework import DjangoFilterBackend
 from .filters import BusinessProfileFilter
-# ...
 
 class MyNeighborhoodStatsAPIView(APIView):
     permission_classes = [IsAuthenticated]
@@ -207,7 +206,15 @@ class BusinessProfileViewSet(viewsets.ModelViewSet):
 
     filter_backends = (DjangoFilterBackend,)
     filterset_class = BusinessProfileFilter
-
+    def list(self, request, *args, **kwargs):
+        print("="*30)
+        print("DEBUG: Received request for BusinessProfile list.")
+        print("DEBUG: Query Parameters received:", request.query_params)
+        print("="*30)
+        
+        # بقیه منطق به صورت عادی ادامه پیدا می‌کند
+        return super().list(request, *args, **kwargs)
+    
     def get_queryset(self):
         # فیلتر کردن بر اساس پارامترهای query (مثال)
         queryset = BusinessProfile.objects.filter(is_verified=True) # فقط تایید شده‌ها را نمایش بده (یا همه اگر ادمین است)
@@ -234,6 +241,27 @@ class BusinessProfileViewSet(viewsets.ModelViewSet):
             return Response(serializer.data)
         except BusinessProfile.DoesNotExist:
             return Response({'detail': 'پروفایل کسب‌وکار برای این کاربر یافت نشد.'}, status=status.HTTP_404_NOT_FOUND)
+        
+    @action(detail=True, methods=['get'], url_path='posts')
+    def posts(self, request, pk=None):
+        business_profile = self.get_object()
+
+        # ***** بهینه‌سازی QuerySet *****
+        posts_queryset = Post.objects.filter(
+            related_business=business_profile,
+            visibility='PUBLIC'
+        ).select_related(
+            'author__profile', # برای دسترسی به پروفایل شخصی نویسنده (اگر لازم است)
+            'author__business_profile' # برای دسترسی به پروفایل کسب‌وکار نویسنده (اگر لازم است)
+        ).prefetch_related(
+            'images', # برای واکشی تمام عکس‌های هر پست در یک کوئری
+            'tags',   # برای واکشی تمام تگ‌های هر پست در یک کوئری
+            'likes'   # برای بررسی is_liked_by_user
+        ).order_by('-created_at')
+
+        # حالا که تمام داده‌ها به صورت بهینه واکشی شده‌اند، سریالایزر به درستی کار خواهد کرد.
+        serializer = PostSerializer(posts_queryset, many=True, context={'request': request})
+        return Response(serializer.data)
 
 # (اختیاری) ViewSet برای نمایش لیست کاربران (فقط ادمین)
 # class UserViewSet(viewsets.ReadOnlyModelViewSet):

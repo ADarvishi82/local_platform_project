@@ -30,6 +30,15 @@ class Post(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="زمان ایجاد")
     updated_at = models.DateTimeField(auto_now=True) # برای ویرایش پست در آینده
+    related_business = models.ForeignKey(
+        BusinessProfile,
+        on_delete=models.SET_NULL, # اگر پروفایل کسب‌وکار حذف شد، پست باقی بماند
+        null=True,
+        blank=True,
+        related_name='posts', # برای دسترسی از business_profile.posts.all()
+        verbose_name="کسب‌وکار مرتبط"
+    )
+    
 
     def __str__(self):
         # از کد قبلی شما استفاده می‌کنیم و فقط visibility را به آن اضافه می‌کنیم

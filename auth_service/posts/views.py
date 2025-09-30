@@ -18,6 +18,7 @@ from .models import Event
 from .serializers import EventSerializer
 from .models import Rating
 from .serializers import RatingSerializer
+from django_filters.rest_framework import DjangoFilterBackend 
 
 # می‌توانید این را به عنوان یک APIView جداگانه بسازید
 class PopularTagsAPIView(APIView):
@@ -60,36 +61,37 @@ class PostViewSet(viewsets.ModelViewSet):
     
     
     def get_queryset(self):
-        # منطق قبلی برای visibility همچنان مهم است
-        # ما آن را با فیلترینگ جدید ترکیب می‌کنیم
+        """
+        این متد فقط کوئری پایه را بر اساس دسترسی (visibility) کاربر برمی‌گرداند.
+        سایر فیلترها توسط DjangoFilterBackend اعمال خواهند شد.
+        """
         user = self.request.user
+        base_queryset = Post.objects.all()
+
         if not user.is_authenticated:
-            return Post.objects.filter(visibility='PUBLIC')
+            return base_queryset.filter(visibility='PUBLIC')
 
         try:
-            user_neighborhood = user.profile.neighborhood if hasattr(user, 'profile') and user.profile.neighborhood else None
-            if not user_neighborhood and hasattr(user, 'business_profile') and user.business_profile.neighborhood:
+            user_neighborhood = None
+            if hasattr(user, 'profile') and user.profile.neighborhood:
+                user_neighborhood = user.profile.neighborhood
+            elif hasattr(user, 'business_profile') and user.business_profile.neighborhood:
                 user_neighborhood = user.business_profile.neighborhood
 
             if user_neighborhood:
-                return Post.objects.filter(
+                # پست‌های عمومی + پست‌های محله کاربر
+                return base_queryset.filter(
                     Q(visibility='PUBLIC') | 
                     Q(visibility='NEIGHBORHOOD', neighborhood=user_neighborhood)
                 ).distinct()
             else:
-                return Post.objects.filter(visibility='PUBLIC')
+                # اگر کاربر محله ندارد، فقط پست‌های عمومی
+                return base_queryset.filter(visibility='PUBLIC')
         
         except (AttributeError, user.profile.RelatedObjectDoesNotExist, user.business_profile.RelatedObjectDoesNotExist):
-             return Post.objects.filter(visibility='PUBLIC')
-
-
-        # فیلتر بر اساس تگ (همچنان کار می‌کند)
-        tag_name = self.request.query_params.get('tag', None)
-        if tag_name:
-            queryset = queryset.filter(tags__name__in=[tag_name])
-        
-        # بر اساس جدیدترین مرتب کن و برگردان
-        return queryset.order_by('-created_at').distinct() # distinct برای جلوگیری از نتایج تکراری در کوئری‌های پیچیده
+             # اگر پروفایل ندارد، فقط پست‌های عمومی
+             return base_queryset.filter(visibility='PUBLIC')
+ 
 
     def get_permissions(self):
         if self.action in ['update', 'partial_update', 'destroy']:
@@ -124,12 +126,21 @@ class PostViewSet(viewsets.ModelViewSet):
             )
 
         # پست را با نویسنده و محله (اگر پیدا شد) ذخیره کن
-        post_instance = serializer.save(author=self.request.user, neighborhood=post_neighborhood)
-        
+        related_business = None
+        if hasattr(author, 'business_profile'):
+            related_business = author.business_profile
+
+        post_instance = serializer.save(
+            author=author, 
+            neighborhood=post_neighborhood, # از کد قبلی
+            related_business=related_business # <<<< اضافه شد
+        )        
         # عکس‌ها را ذخیره کن
         images_data = self.request.FILES.getlist('uploaded_images')
         for image_data in images_data:
             PostImage.objects.create(post=post_instance, image=image_data)
+            
+
 
     
 
@@ -150,36 +161,39 @@ class CommentViewSet(viewsets.ModelViewSet):
     """
     یک ViewSet برای مشاهده و مدیریت کامنت‌ها.
     """
-    queryset = Comment.objects.all().select_related('author__profile') # بهینه‌سازی برای گرفتن پروفایل نویسنده
+    queryset = Comment.objects.all().select_related('author__profile')
     serializer_class = CommentSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
-    filter_backends = [DjangoFilterBackend] # اگر قبلاً اضافه نکرده‌اید
-    filterset_fields = ['post'] # <<<< روش ساده‌تر و استانداردتر برای فیلتر
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ['post']
 
     def get_permissions(self):
         """
         دسترسی ویرایش/حذف را فقط به نویسنده کامنت محدود می‌کند.
         """
         if self.action in ['update', 'partial_update', 'destroy']:
+            # حالا IsCommentAuthorOrReadOnly تعریف شده و این خط کار می‌کند
             return [permissions.IsAuthenticated(), IsCommentAuthorOrReadOnly()]
         return super().get_permissions()
 
     def perform_create(self, serializer):
         """
         هنگام ایجاد کامنت، نویسنده را به کاربر لاگین شده فعلی تنظیم می‌کند.
-        فیلد 'post' باید توسط کلاینت در بدنه درخواست ارسال شود.
         """
-        # serializer.save() داده‌های اعتبارسنجی شده را می‌گیرد
-        # و ما author را به صورت یک kwarg اضافی به آن پاس می‌دهیم.
         serializer.save(author=self.request.user)
-
-    # get_queryset قبلی را می‌توانیم با استفاده از django-filter ساده‌تر کنیم
-    # def get_queryset(self):
-    #     post_id = self.request.query_params.get('post_id')
-    #     if post_id:
-    #         return Comment.objects.filter(post_id=post_id).select_related('author')
-    #     return super().get_queryset()
-
+        
+class IsCommentAuthorOrReadOnly(permissions.BasePermission):
+    """
+    Permission سفارشی برای اینکه فقط نویسنده یک کامنت بتواند آن را ویرایش کند.
+    """
+    def has_object_permission(self, request, view, obj):
+        # اجازه خواندن برای همه مجاز است.
+        if request.method in permissions.SAFE_METHODS:
+            return True
+        # اجازه نوشتن فقط به نویسنده کامنت داده می‌شود.
+        # obj در اینجا یک نمونه از مدل Comment است.
+        return obj.author == request.user
+    
 class ImportantNewsAPIView(ListAPIView):
     """
     API برای نمایش لیست اخبار مهم (پست‌های سنجاق شده از نوع خبر)

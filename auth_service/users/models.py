@@ -48,13 +48,14 @@ class UserProfile(models.Model):
 # مدل Category
 class Category(models.Model):
     name = models.CharField(max_length=100, unique=True, verbose_name="نام دسته‌بندی")
-    slug = models.SlugField(max_length=100, unique=True, blank=True, verbose_name="اسلاگ")
+    slug = models.SlugField(max_length=100, unique=True, blank=True, verbose_name="اسلاگ", allow_unicode=True) # <<<< allow_unicode اضافه شد
     # parent = models.ForeignKey('self', null=True, blank=True, related_name='children', on_delete=models.CASCADE, verbose_name="دسته‌بندی مادر") # برای دسته‌بندی‌های تو در تو (اختیاری)
     # icon = models.CharField(max_length=50, blank=True, null=True, verbose_name="آیکون") # نام آیکون از یک مجموعه آیکون
 
     def save(self, *args, **kwargs):
         if not self.slug:
-            self.slug = slugify(self.name)
+            # به slugify بگویید که کاراکترهای فارسی را نگه دارد
+            self.slug = slugify(self.name, allow_unicode=True)
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -68,11 +69,11 @@ class Category(models.Model):
 # مدل Tag
 class Tag(models.Model):
     name = models.CharField(max_length=100, unique=True, verbose_name="نام تگ")
-    slug = models.SlugField(max_length=100, unique=True, blank=True, verbose_name="اسلاگ")
+    slug = models.SlugField(max_length=100, unique=True, blank=True, verbose_name="اسلاگ", allow_unicode=True) # <<<< allow_unicode اضافه شد
 
     def save(self, *args, **kwargs):
         if not self.slug:
-            self.slug = slugify(self.name)
+            self.slug = slugify(self.name, allow_unicode=True)
         super().save(*args, **kwargs)
 
     def __str__(self):

@@ -18,12 +18,13 @@ class PostFilter(filters.FilterSet):
         choices=(('personal', 'شخصی'), ('business', 'کسب‌وکار/سازمان')),
         method='filter_by_post_type'
     )
+    tag = filters.CharFilter(field_name='tags__name', lookup_expr='iexact')
 
     class Meta:
         model = Post
         # اینجا فقط فیلترهایی را که مستقیماً روی مدل Post هستند تعریف می‌کنیم
         # فیلترهای پیچیده‌تر را به صورت سفارشی در بالا تعریف کردیم
-        fields = ['neighborhood', 'post_type']
+        fields = ['neighborhood', 'post_type', 'tag']
 
     def filter_by_post_type(self, queryset, name, value):
         """
